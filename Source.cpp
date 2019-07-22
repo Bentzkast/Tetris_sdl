@@ -1,5 +1,6 @@
 // Include dependencies
 #include <SDL.h>
+#include <SDL_image.h>
 #include <stdio.h>
 #include <string>
 
@@ -27,7 +28,7 @@ int main(int argc, char* args[])
 		printf("ENGINE - failed to initialize!\n");
 		return 0;
 	}
-	
+
 	if (loadAsset() == false)
 	{
 		printf("ENGINE - failed to load asset!\n");
@@ -54,7 +55,7 @@ int main(int argc, char* args[])
 	//SDL_FillRect(gScreenSurface, NULL, SDL_MapRGB(gScreenSurface->format, 0x11, 0x11, 0x11));
 
 	closeEngine();
-	
+
 	return 0;
 }
 
@@ -70,22 +71,22 @@ void gameLoop()
 			{
 				bGameOver = true;
 			}
-			else if(evt.type == SDL_KEYDOWN)
+			else if (evt.type == SDL_KEYDOWN)
 			{
 				switch (evt.key.keysym.sym)
 				{
-					case SDLK_UP:
-						printf("Up!\n");
-						break;
-					case SDLK_DOWN:
-						printf("Down!\n");
-						break;
-					case SDLK_LEFT:
-						printf("Left!\n");
-						break;
-					case SDLK_RIGHT:
-						printf("Right!\n");
-						break;
+				case SDLK_UP:
+					printf("Up!\n");
+					break;
+				case SDLK_DOWN:
+					printf("Down!\n");
+					break;
+				case SDLK_LEFT:
+					printf("Left!\n");
+					break;
+				case SDLK_RIGHT:
+					printf("Right!\n");
+					break;
 				}
 			}
 		}
@@ -97,7 +98,7 @@ bool initEngine()
 {
 	if (SDL_Init(SDL_INIT_VIDEO) < 0)
 	{
-		printf("SDL could not initialize! SDL_ERROR: %s\n", SDL_GetError());
+		printf("SDL could not initialize! SDL ERROR: %s\n", SDL_GetError());
 		return false;
 	}
 	// Create Window 
@@ -112,7 +113,15 @@ bool initEngine()
 	// fail check
 	if (gWindow == NULL)
 	{
-		printf("Window could not be created! SDL_ERROR: %s\n", SDL_GetError());
+		printf("Window could not be created! SDL ERROR: %s\n", SDL_GetError());
+		return false;
+	}
+
+	// Init Image loading
+	int imgFlags = IMG_INIT_PNG;
+	if ((IMG_Init(imgFlags) & imgFlags) == false)
+	{
+		printf("SDL image could not be initialize! SDL_image ERROR: %s\n", IMG_GetError());
 		return false;
 	}
 
@@ -124,10 +133,10 @@ bool initEngine()
 SDL_Surface* loadSurface(std::string path)
 {
 	SDL_Surface* pOptSurface = NULL;
-	SDL_Surface* pLoadedSurface = SDL_LoadBMP(path.c_str());
+	SDL_Surface* pLoadedSurface = IMG_Load(path.c_str());
 	if (pLoadedSurface == NULL)
 	{
-		printf("Unable to load image %s! SDL_ERROR: %s\n", path.c_str(), SDL_GetError());
+		printf("Unable to load image %s! SDL_image ERROR: %s\n", path.c_str(), IMG_GetError());
 		return NULL;
 	}
 	// convert to screen format
@@ -136,10 +145,9 @@ SDL_Surface* loadSurface(std::string path)
 
 	if (pOptSurface == NULL)
 	{
-		printf("Unable to optimize image %s! SDL_ERROR: %s\n", path.c_str(), SDL_GetError());
+		printf("Unable to optimize image %s! SDL ERROR: %s\n", path.c_str(), SDL_GetError());
 		return NULL;
 	}
-
 
 	return pOptSurface;
 }
