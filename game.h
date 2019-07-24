@@ -31,6 +31,8 @@ private:
 	SDL_Texture* mTexture;
 	bool misRunning;
 	Uint32 mTicksCount;
+	bool mControl[ControlSize];
+	void drawBlockAt(const NVector2 & fieldPos,  int x, int y, Color color);
 };
 
 class Tetris
@@ -38,12 +40,23 @@ class Tetris
 public:
 	Tetris();
 	void NewPlayingField();
-	unsigned char GetFieldAt(int x, int y);
-	//int rotate(NVector2 pos, int rotation);
-	//bool DoesPieceFit(int )
+	unsigned char GetFieldAt(int x, int y) const;
+	wchar_t  GetCurrentTetromino(int x, int y) const;
+	BlockType GetCurrentBlockType();
+	NVector2 const GetCurrentPiecePos() const;
+	void Update(bool(&control)[Control::ControlSize]);
 
-	std::wstring tetromino[7];
+
+private:
+	std::wstring mTetromino[7];
 	// representation of the field in char array
 	unsigned char mField[NFIELD_HEIGHT * NFIELD_HEIGHT];
-
+	int mCurrentPieceIndex;
+	int mCurrentPieceRotation;
+	NVector2 mCurrentPiecePos;
+	int mTetrisSpeed;
+	int mTetrisTick;
+	bool moveCurrentPiece(NVector2 v);
+	void rotateCurrentPiece();
+	bool CheckValidPos();
 };

@@ -8,9 +8,10 @@ Game::Game():
 	mRenderer{ nullptr },
 	mTexture{ nullptr },
 	misRunning{ true },
-	mTicksCount{ 0 }
+	mTicksCount{ 0 },
+	mControl{ {false} }
 {
-
+	mControl[Control::RotateUp] = true;
 }
 
 bool Game::Init() {
@@ -96,7 +97,7 @@ void Game::RunLoop() {
 void Game::processInput() {
 	SDL_Event evt;
 
-	while (SDL_PollEvent(&evt) != 0)
+	if (SDL_PollEvent(&evt) != 0)
 	{
 		if (evt.type == SDL_QUIT)
 		{
@@ -107,20 +108,39 @@ void Game::processInput() {
 			switch (evt.key.keysym.sym)
 			{
 			case SDLK_DOWN:
-				SDL_Log("Down!\n");
+				mControl[Control::Down] = true;
 				break;
 			case SDLK_LEFT:
-				SDL_Log("Left!\n");
+				mControl[Control::Left] = true;
 				break;
 			case SDLK_RIGHT:
-				SDL_Log("Right!\n");
+				mControl[Control::Right] = true;
 				break;
 			case SDLK_SPACE:
-				SDL_Log("Rotate!\n");
+				SDL_Log("Space Down");
+				mControl[Control::Rotate] = true;
 				break;
 			case SDLK_ESCAPE:
 				misRunning = false;
 			}
+		}
+		else if (evt.type == SDL_KEYUP)
+		{
+			switch (evt.key.keysym.sym)
+			{
+				case SDLK_SPACE:
+				{
+					mControl[Control::RotateUp] = true;
+					mControl[Control::Rotate] = false;
+				}
+			}
+		}
+	}
+	else
+	{
+		for (int i = 0; i < Control::RotateUp; i++)
+		{
+			mControl[i] = false;
 		}
 	}
 }
@@ -129,9 +149,23 @@ void Game::updateGame() {
 	float deltaTime = (SDL_GetTicks() - mTicksCount / 1000.0f);
 	deltaTime = deltaTime > 0.05f ? 0.05f : deltaTime;
 	mTicksCount = SDL_GetTicks();
+	// ---------------------------------------------------
+
+	gTetris.Update(mControl);
 
 	// frame limiting to 60fps 16ms per-frame
 	while (!SDL_TICKS_PASSED(SDL_GetTicks(), mTicksCount + 16));
+}
+
+void Game::drawBlockAt(const NVector2& fieldPos, int x, int y, Color color) {
+	SDL_SetRenderDrawColor(mRenderer, color.r, color.g, color.b, color.a);
+	SDL_Rect block{
+		fieldPos.x + x * NBLOCK_SIZE_PXL,
+		fieldPos.y + y * NBLOCK_SIZE_PXL,
+		NBLOCK_SIZE_PXL,
+		NBLOCK_SIZE_PXL };
+
+	SDL_RenderFillRect(mRenderer, &block);
 }
 
 void Game::renderDisplay() {
@@ -142,7 +176,7 @@ void Game::renderDisplay() {
 	NVector2 fieldPos{ NSCREEN_WIDTH / 4 , NSCREEN_HEIGHT / 4 };
 
 	// Draw the playing field frame
-	SDL_SetRenderDrawColor(mRenderer, 0, 0, 0, 255);
+	SDL_SetRenderDrawColor(mRenderer, 0, 0, 0, 180);
 
 	for (int x = 0; x < NFIELD_WIDTH; x++)
 	{
@@ -150,23 +184,107 @@ void Game::renderDisplay() {
 		{
 			switch (gTetris.GetFieldAt(x, y))
 			{
+				case BlockType::Purple:
+				{
+					drawBlockAt(fieldPos, x, y, COLOR_PURPLE);
+					break;
+				}
+				case BlockType::Red:
+				{
+					drawBlockAt(fieldPos, x, y, COLOR_RED);
+					break;
+				}
+				case BlockType::Yellow:
+				{
+					drawBlockAt(fieldPos, x, y, COLOR_YELLOW);
+					break;
+				}
+				case BlockType::Green:
+				{
+					drawBlockAt(fieldPos, x, y, COLOR_GREEN);
+					break;
+				}
+				case BlockType::Cyan:
+				{
+					drawBlockAt(fieldPos, x, y, COLOR_CYAN);
+					break;
+				}
+				case BlockType::Blue:
+				{
+					drawBlockAt(fieldPos, x, y, COLOR_BLUE);
+					break;
+				}
+				case BlockType::White:
+				{
+					drawBlockAt(fieldPos, x, y, COLOR_WHITE);
+					break;
+				}
 				case BlockType::Wall:
 				{
-					SDL_Rect block{
-						fieldPos.x + x * NBLOCK_SIZE_PXL,
-						fieldPos.y + y * NBLOCK_SIZE_PXL,
-						NBLOCK_SIZE_PXL,
-						NBLOCK_SIZE_PXL };
-										SDL_RenderFillRect(mRenderer, &block);
+					drawBlockAt(fieldPos, x, y, COLOR_BLACK);
 					break;
 				}
 				default:
 				{
+
+					break;
+				}
+			}
+			SDL_SetRenderDrawColor(mRenderer, 0, 0, 0, 180);
+			SDL_Rect block{
+				fieldPos.x + x * NBLOCK_SIZE_PXL,
+				fieldPos.y + y * NBLOCK_SIZE_PXL,
+				NBLOCK_SIZE_PXL,
+				NBLOCK_SIZE_PXL };
+
+			SDL_RenderDrawRect(mRenderer, &block);
+		}
+	}
+	NVector2 const piecePos = gTetris.GetCurrentPiecePos();
+	// Draw Current piece
+	for (int x = 0; x < NTETROMINO_SIZE; x++)
+	{
+		for (int y = 0; y < NTETROMINO_SIZE; y++)
+		{
+			if (gTetris.GetCurrentTetromino(x,y) == L'X') {
+			
+				switch (gTetris.GetCurrentBlockType())
+				{
+				case BlockType::Purple: {
+					drawBlockAt(fieldPos, (piecePos.x + x), (piecePos.y + y),  COLOR_PURPLE);
+					break;
+				}
+				case BlockType::Red: {
+					drawBlockAt(fieldPos, (piecePos.x + x), (piecePos.y + y), COLOR_RED);
+					break;
+				}
+				case BlockType::Yellow: {
+					drawBlockAt(fieldPos, (piecePos.x + x), (piecePos.y + y), COLOR_YELLOW);
+					break;
+				}
+				case BlockType::Green: {
+					drawBlockAt(fieldPos, (piecePos.x + x), (piecePos.y + y), COLOR_GREEN);
+					break;
+				}
+				case BlockType::Cyan: {
+					drawBlockAt(fieldPos, (piecePos.x + x), (piecePos.y + y), COLOR_CYAN);
+					break;
+				}
+				case BlockType::Blue: {
+					drawBlockAt(fieldPos, (piecePos.x + x), (piecePos.y + y), COLOR_BLUE);
+					break;
+				}
+				case BlockType::White: {
+					drawBlockAt(fieldPos, (piecePos.x + x), (piecePos.y + y), COLOR_WHITE);
+					break;
+				}
+				default:
 					break;
 				}
 			}
 		}
 	}
+	
 
 	//SDL_RenderCopy(mRenderer, mTexture, NULL, NULL);
 	SDL_RenderPresent(mRenderer);
@@ -194,41 +312,49 @@ SDL_Texture* Game::loadTexture(std::string path)
 	return pTexture;
 }
 
-Tetris::Tetris() : mField{ {0} } {
-	tetromino[0].append(L"..X.");
-	tetromino[0].append(L"..X.");
-	tetromino[0].append(L"..X.");
-	tetromino[0].append(L"..X.");
+Tetris::Tetris() :
+	mField{ {0} },
+	mCurrentPieceIndex{ 1 },
+	mCurrentPieceRotation{ 0 },
+	mTetrisSpeed{ NTETRIS_SPEED },
+	mTetrisTick{ 0 }{
 
-	tetromino[1].append(L"..X.");
-	tetromino[1].append(L".XX.");
-	tetromino[1].append(L".X..");
-	tetromino[1].append(L"....");
+	mCurrentPiecePos = { NFIELD_WIDTH / 2, 0 };
 
-	tetromino[2].append(L".X..");
-	tetromino[2].append(L".XX.");
-	tetromino[2].append(L"..X.");
-	tetromino[2].append(L"....");
+	mTetromino[0].append(L"..X.");
+	mTetromino[0].append(L"..X.");
+	mTetromino[0].append(L"..X.");
+	mTetromino[0].append(L"..X.");
 
-	tetromino[3].append(L"....");
-	tetromino[3].append(L".XX.");
-	tetromino[3].append(L".XX.");
-	tetromino[3].append(L"....");
+	mTetromino[1].append(L"..X.");
+	mTetromino[1].append(L".XX.");
+	mTetromino[1].append(L".X..");
+	mTetromino[1].append(L"....");
 
-	tetromino[4].append(L"....");
-	tetromino[4].append(L".XX.");
-	tetromino[4].append(L".X..");
-	tetromino[4].append(L".X..");
+	mTetromino[2].append(L".X..");
+	mTetromino[2].append(L".XX.");
+	mTetromino[2].append(L"..X.");
+	mTetromino[2].append(L"....");
 
-	tetromino[5].append(L"....");
-	tetromino[5].append(L".XX.");
-	tetromino[5].append(L"..X.");
-	tetromino[5].append(L"..X.");
+	mTetromino[3].append(L"....");
+	mTetromino[3].append(L".XX.");
+	mTetromino[3].append(L".XX.");
+	mTetromino[3].append(L"....");
 
-	tetromino[6].append(L"..X.");
-	tetromino[6].append(L".XX.");
-	tetromino[6].append(L"..X.");
-	tetromino[6].append(L"....");
+	mTetromino[4].append(L"....");
+	mTetromino[4].append(L".XX.");
+	mTetromino[4].append(L".X..");
+	mTetromino[4].append(L".X..");
+
+	mTetromino[5].append(L"....");
+	mTetromino[5].append(L".XX.");
+	mTetromino[5].append(L"..X.");
+	mTetromino[5].append(L"..X.");
+
+	mTetromino[6].append(L"..X.");
+	mTetromino[6].append(L".XX.");
+	mTetromino[6].append(L"..X.");
+	mTetromino[6].append(L"....");
 }
 
 void Tetris::NewPlayingField() {
@@ -248,6 +374,113 @@ void Tetris::NewPlayingField() {
 }
 
 
-unsigned char Tetris::GetFieldAt(int x, int y){
+unsigned char Tetris::GetFieldAt(int x, int y) const{
 	return mField[y * NFIELD_WIDTH + x];
+}
+
+
+BlockType Tetris::GetCurrentBlockType() {
+	return static_cast<BlockType>(mCurrentPieceIndex + 1);
+}
+
+wchar_t Tetris::GetCurrentTetromino(int x, int y) const {
+	switch (mCurrentPieceRotation % 4)
+	{
+	case 0:
+		return (mTetromino[mCurrentPieceIndex])[y * NTETROMINO_SIZE +  x];
+	case 1:
+		return (mTetromino[mCurrentPieceIndex])[12 + y - (x * NTETROMINO_SIZE)];
+	case 2:
+		return (mTetromino[mCurrentPieceIndex])[15 - (y * NTETROMINO_SIZE) - x];
+	case 3:
+		return (mTetromino[mCurrentPieceIndex])[3 - y + (x * NTETROMINO_SIZE)];
+	}
+
+	return 0;
+}
+
+NVector2 const Tetris::GetCurrentPiecePos() const {
+	return mCurrentPiecePos;
+}
+
+bool Tetris::moveCurrentPiece(NVector2 v) {
+	mCurrentPiecePos.x += v.x;
+	mCurrentPiecePos.y += v.y;
+
+	if (CheckValidPos() == false) {
+		mCurrentPiecePos.x -= v.x;
+		mCurrentPiecePos.y -= v.y;
+		return false;
+	}
+	return true;
+}
+
+void Tetris::rotateCurrentPiece() {
+	mCurrentPieceRotation += 1;
+
+	if (CheckValidPos() == false) {
+		mCurrentPieceRotation -= 1;
+		return;
+	}
+}
+
+void Tetris::Update(bool (&control)[Control::ControlSize]) {
+	mTetrisTick++;
+
+
+	if (control[Control::Left]) {
+		moveCurrentPiece(NVector2{ -1,0 });
+	}
+	if (control[Control::Right]) {
+		moveCurrentPiece(NVector2{ 1, 0 });
+	}
+
+	if (control[Control::Rotate] && control[Control::RotateUp]) {
+		rotateCurrentPiece();
+		control[Control::RotateUp] = false;
+	}
+
+
+	if (mTetrisTick == mTetrisSpeed) {
+		mTetrisTick = 0;
+
+		if (moveCurrentPiece(NVector2{ 0, 1 }) == false) {
+			for (int x = 0; x < NTETROMINO_SIZE; x++)
+			{
+				for (int y = 0; y < NTETROMINO_SIZE; y++)
+				{
+					if (GetCurrentTetromino(x, y) != L'.') {
+						mField[(mCurrentPiecePos.y + y) * NFIELD_WIDTH + (mCurrentPiecePos.x + x)] = gTetris.GetCurrentBlockType();
+					}
+				}
+			}
+
+			mCurrentPiecePos = NVector2{ NFIELD_WIDTH / 2, 0 };
+			mCurrentPieceRotation = 0;
+			mCurrentPieceIndex = rand() % 7;
+		}
+	}
+}
+
+bool Tetris::CheckValidPos() {
+	for (int x = 0; x < NTETROMINO_SIZE; x++)
+	{
+		for (int y = 0; y < NTETROMINO_SIZE; y++)
+		{
+			wchar_t block = GetCurrentTetromino(x, y);
+			int blockIndexInFieldCoord = 
+				(mCurrentPiecePos.y + y) * NFIELD_WIDTH
+				+ (mCurrentPiecePos.x + x);	
+
+			// only check block if it is inside the playing bound
+			if (mCurrentPiecePos.x + x >= 0 && mCurrentPiecePos.x + x < NFIELD_WIDTH) {
+				if (mCurrentPiecePos.y + y >= 0 && mCurrentPiecePos.y + y < NFIELD_HEIGHT) {
+					if (block != L'.' && mField[blockIndexInFieldCoord] != BlockType::Empty) {
+						return false;
+					}
+				}
+			}
+		}
+	}
+	return true;
 }
