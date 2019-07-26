@@ -1,7 +1,9 @@
 #include <SDL.h>
 #include <SDL_image.h>
+#include <SDL_ttf.h>
 #include <stdio.h>
 #include <string>
+#include <vector>
 #include "constant.h"
 #pragma once
 // constant
@@ -20,19 +22,25 @@ public:
 	bool LoadAsset();
 	void RunLoop();
 	void Close();
+
 private:
 	void processInput();
 	void updateGame();
 	void renderDisplay();
 	SDL_Texture* loadTexture(std::string path);
+	SDL_Texture* loadTextureFromString(std::string text, SDL_Color textColor);
+	void drawBlockAt(const NVector2& fieldPos, int x, int y, Color color);
+
 
 	SDL_Window* mWindow;
 	SDL_Renderer* mRenderer;
 	SDL_Texture* mTexture;
+	TTF_Font* mFont;
+	SDL_Texture* mFontTexture;
 	bool misRunning;
 	Uint32 mTicksCount;
 	bool mControl[ControlSize];
-	void drawBlockAt(const NVector2 & fieldPos,  int x, int y, Color color);
+	int mScore;
 };
 
 class Tetris
@@ -44,7 +52,7 @@ public:
 	wchar_t  GetCurrentTetromino(int x, int y) const;
 	BlockType GetCurrentBlockType();
 	NVector2 const GetCurrentPiecePos() const;
-	void Update(bool(&control)[Control::ControlSize]);
+	void Update(int& score, bool& isRunning, bool(&control)[Control::ControlSize]);
 
 
 private:
@@ -59,4 +67,7 @@ private:
 	bool moveCurrentPiece(NVector2 v);
 	void rotateCurrentPiece();
 	bool CheckValidPos();
+	std::vector<int> mLines;
+	int delayForLineDect;
+	int mPieceCount;
 };

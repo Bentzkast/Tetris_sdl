@@ -7,9 +7,12 @@ Game::Game():
 	mWindow{ nullptr },
 	mRenderer{ nullptr },
 	mTexture{ nullptr },
+	mFont{ nullptr },
+	mFontTexture{ nullptr}, 
 	misRunning{ true },
 	mTicksCount{ 0 },
-	mControl{ {false} }
+	mControl{ {false}},
+	mScore{ 100 } 
 {
 	mControl[Control::RotateUp] = true;
 }
@@ -54,18 +57,33 @@ bool Game::Init() {
 		return false;
 	}
 
+	if (TTF_Init() == -1) {
+		SDL_Log("SDL ttf could not be initialize! SDL_ttf ERROR: %s\n", TTF_GetError());
+		return false;
+	}
+
+
 	// get the surface contained by window
 	//gScreenSurface = SDL_GetWindowSurface(gWindow);
 	return true;
 }
 
 void Game::Close() {
+	TTF_CloseFont(mFont);
+	mFont = nullptr;
+	if (mFontTexture != nullptr) {
+		SDL_DestroyTexture(mFontTexture);
+	}
+
 	SDL_DestroyRenderer(mRenderer);
 	SDL_DestroyWindow(mWindow);
 
 	mRenderer = nullptr;
 	mWindow = nullptr;
 
+
+	TTF_Quit();
+	IMG_Quit();
 	SDL_Quit();
 }
 
@@ -73,6 +91,15 @@ void Game::Close() {
 bool Game::LoadAsset() {
 	if ((mTexture = loadTexture("asset/test.bmp")) == NULL) {
 		return false;
+	}
+
+	mFont = TTF_OpenFont("asset/Pixeled.ttf", 20);
+	if (mFont == nullptr) {
+		SDL_Log("Failed to load Pixeld font! SDL_ttf Error %s\n", TTF_GetError());
+		return false;
+	}
+	else {
+
 	}
 
 	gTetris.NewPlayingField();
@@ -151,7 +178,7 @@ void Game::updateGame() {
 	mTicksCount = SDL_GetTicks();
 	// ---------------------------------------------------
 
-	gTetris.Update(mControl);
+	gTetris.Update(mScore, misRunning, mControl);
 
 	// frame limiting to 60fps 16ms per-frame
 	while (!SDL_TICKS_PASSED(SDL_GetTicks(), mTicksCount + 16));
@@ -278,6 +305,11 @@ void Game::renderDisplay() {
 					drawBlockAt(fieldPos, (piecePos.x + x), (piecePos.y + y), COLOR_WHITE);
 					break;
 				}
+				case BlockType::Wall:
+				{
+					drawBlockAt(fieldPos, (piecePos.x + x), (piecePos.y + y), COLOR_WHITE);
+					break;
+				}
 				default:
 					break;
 				}
@@ -285,8 +317,23 @@ void Game::renderDisplay() {
 		}
 	}
 	
+	// UI Score
+	SDL_Rect renderQuad = { 10, 10, 48, 56 };
+	loadTextureFromString(std::to_string(mScore), SDL_Color{ 0, 0, 0 });
+	SDL_RenderCopy(mRenderer, mFontTexture, NULL, &renderQuad);
 
-	//SDL_RenderCopy(mRenderer, mTexture, NULL, NULL);
+	renderQuad = { 10, 200, 20, 56 };
+	loadTextureFromString("1", SDL_Color{ 0, 0, 0 });
+	SDL_RenderCopy(mRenderer, mFontTexture, NULL, &renderQuad);
+
+	// UI Title
+	renderQuad = { 200, 10, 208, 56 };
+	if (loadTextureFromString("Tetris Clone", SDL_Color{ 0, 0, 0 }) == nullptr) {
+		printf("Failed to load text texture!\n");
+	}
+
+	SDL_RenderCopy(mRenderer, mFontTexture, NULL, &renderQuad);
+
 	SDL_RenderPresent(mRenderer);
 }
 
@@ -312,175 +359,18 @@ SDL_Texture* Game::loadTexture(std::string path)
 	return pTexture;
 }
 
-Tetris::Tetris() :
-	mField{ {0} },
-	mCurrentPieceIndex{ 1 },
-	mCurrentPieceRotation{ 0 },
-	mTetrisSpeed{ NTETRIS_SPEED },
-	mTetrisTick{ 0 }{
-
-	mCurrentPiecePos = { NFIELD_WIDTH / 2, 0 };
-
-	mTetromino[0].append(L"..X.");
-	mTetromino[0].append(L"..X.");
-	mTetromino[0].append(L"..X.");
-	mTetromino[0].append(L"..X.");
-
-	mTetromino[1].append(L"..X.");
-	mTetromino[1].append(L".XX.");
-	mTetromino[1].append(L".X..");
-	mTetromino[1].append(L"....");
-
-	mTetromino[2].append(L".X..");
-	mTetromino[2].append(L".XX.");
-	mTetromino[2].append(L"..X.");
-	mTetromino[2].append(L"....");
-
-	mTetromino[3].append(L"....");
-	mTetromino[3].append(L".XX.");
-	mTetromino[3].append(L".XX.");
-	mTetromino[3].append(L"....");
-
-	mTetromino[4].append(L"....");
-	mTetromino[4].append(L".XX.");
-	mTetromino[4].append(L".X..");
-	mTetromino[4].append(L".X..");
-
-	mTetromino[5].append(L"....");
-	mTetromino[5].append(L".XX.");
-	mTetromino[5].append(L"..X.");
-	mTetromino[5].append(L"..X.");
-
-	mTetromino[6].append(L"..X.");
-	mTetromino[6].append(L".XX.");
-	mTetromino[6].append(L"..X.");
-	mTetromino[6].append(L"....");
-}
-
-void Tetris::NewPlayingField() {
-	for (int x = 0; x < NFIELD_WIDTH; x++)
-	{
-		for (int y = 0; y < NFIELD_HEIGHT; y++)
-		{
-			if (x == 0 || y == NFIELD_HEIGHT - 1 || x == NFIELD_WIDTH - 1)
-			{
-				mField[y * NFIELD_WIDTH + x] = BlockType::Wall;
-			}
-			else {
-				mField[y * NFIELD_WIDTH + x] = 0;
-			}
-		}
+SDL_Texture* Game::loadTextureFromString(std::string text, SDL_Color textColor) {
+	SDL_Surface* textSurface = TTF_RenderText_Solid(mFont, text.c_str(), textColor);
+	if (textSurface == nullptr) {
+		SDL_Log("Unable to render text surface! SDL ERROR: %s\n", SDL_GetError());
+		return nullptr;
 	}
-}
-
-
-unsigned char Tetris::GetFieldAt(int x, int y) const{
-	return mField[y * NFIELD_WIDTH + x];
-}
-
-
-BlockType Tetris::GetCurrentBlockType() {
-	return static_cast<BlockType>(mCurrentPieceIndex + 1);
-}
-
-wchar_t Tetris::GetCurrentTetromino(int x, int y) const {
-	switch (mCurrentPieceRotation % 4)
-	{
-	case 0:
-		return (mTetromino[mCurrentPieceIndex])[y * NTETROMINO_SIZE +  x];
-	case 1:
-		return (mTetromino[mCurrentPieceIndex])[12 + y - (x * NTETROMINO_SIZE)];
-	case 2:
-		return (mTetromino[mCurrentPieceIndex])[15 - (y * NTETROMINO_SIZE) - x];
-	case 3:
-		return (mTetromino[mCurrentPieceIndex])[3 - y + (x * NTETROMINO_SIZE)];
+	mFontTexture = SDL_CreateTextureFromSurface(mRenderer, textSurface);
+	if (mFontTexture == nullptr) {
+		SDL_Log("Unable to create texture from surface! SDL ERROR: %s\n", SDL_GetError());
+		return nullptr;
 	}
 
-	return 0;
+	//SDL_Log("%d, %d ", textSurface->w, textSurface->h);
 }
 
-NVector2 const Tetris::GetCurrentPiecePos() const {
-	return mCurrentPiecePos;
-}
-
-bool Tetris::moveCurrentPiece(NVector2 v) {
-	mCurrentPiecePos.x += v.x;
-	mCurrentPiecePos.y += v.y;
-
-	if (CheckValidPos() == false) {
-		mCurrentPiecePos.x -= v.x;
-		mCurrentPiecePos.y -= v.y;
-		return false;
-	}
-	return true;
-}
-
-void Tetris::rotateCurrentPiece() {
-	mCurrentPieceRotation += 1;
-
-	if (CheckValidPos() == false) {
-		mCurrentPieceRotation -= 1;
-		return;
-	}
-}
-
-void Tetris::Update(bool (&control)[Control::ControlSize]) {
-	mTetrisTick++;
-
-
-	if (control[Control::Left]) {
-		moveCurrentPiece(NVector2{ -1,0 });
-	}
-	if (control[Control::Right]) {
-		moveCurrentPiece(NVector2{ 1, 0 });
-	}
-
-	if (control[Control::Rotate] && control[Control::RotateUp]) {
-		rotateCurrentPiece();
-		control[Control::RotateUp] = false;
-	}
-
-
-	if (mTetrisTick == mTetrisSpeed) {
-		mTetrisTick = 0;
-
-		if (moveCurrentPiece(NVector2{ 0, 1 }) == false) {
-			for (int x = 0; x < NTETROMINO_SIZE; x++)
-			{
-				for (int y = 0; y < NTETROMINO_SIZE; y++)
-				{
-					if (GetCurrentTetromino(x, y) != L'.') {
-						mField[(mCurrentPiecePos.y + y) * NFIELD_WIDTH + (mCurrentPiecePos.x + x)] = gTetris.GetCurrentBlockType();
-					}
-				}
-			}
-
-			mCurrentPiecePos = NVector2{ NFIELD_WIDTH / 2, 0 };
-			mCurrentPieceRotation = 0;
-			mCurrentPieceIndex = rand() % 7;
-		}
-	}
-}
-
-bool Tetris::CheckValidPos() {
-	for (int x = 0; x < NTETROMINO_SIZE; x++)
-	{
-		for (int y = 0; y < NTETROMINO_SIZE; y++)
-		{
-			wchar_t block = GetCurrentTetromino(x, y);
-			int blockIndexInFieldCoord = 
-				(mCurrentPiecePos.y + y) * NFIELD_WIDTH
-				+ (mCurrentPiecePos.x + x);	
-
-			// only check block if it is inside the playing bound
-			if (mCurrentPiecePos.x + x >= 0 && mCurrentPiecePos.x + x < NFIELD_WIDTH) {
-				if (mCurrentPiecePos.y + y >= 0 && mCurrentPiecePos.y + y < NFIELD_HEIGHT) {
-					if (block != L'.' && mField[blockIndexInFieldCoord] != BlockType::Empty) {
-						return false;
-					}
-				}
-			}
-		}
-	}
-	return true;
-}
